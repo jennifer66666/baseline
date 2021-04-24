@@ -18,5 +18,4 @@ class Model(nn.Module):
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = F.relu(self.fc4(x))
-        x = x.reshape([-1,106,3])
         return x

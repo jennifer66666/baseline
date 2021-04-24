@@ -12,13 +12,15 @@ class FAN:
         input = skimage.io.imread(image_path)
         preds = self.fa.get_landmarks(input)
         preds = np.array(preds)
-        preds = np.squeeze(preds)
         if preds.shape[0]>1:
             #more than 1 person,abandon
             return False
+        # if detected 1 person, [1,68,3] the 1D should be squeeze
+        preds = np.squeeze(preds)
         # prevent generate empty detection
-        if preds == None:
+        if preds is None:
             return False
+        # only save non-empty file
         np.savetxt(dir_path+'landmarks.csv', preds, delimiter=',')
-        print("successfully stored "+dir_path+'landmarks.csv')
+        #print("successfully stored "+dir_path+'landmarks.csv')
         return True

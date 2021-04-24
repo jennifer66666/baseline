@@ -26,7 +26,7 @@ class OnePerson:
     def three_angles(self,person_path,emotion):
         r_landmarks,f_landmarks,l_landmarks,stack = None,None,None,None
         three_angles_path = person_path+"/"+emotion+"/Images/"#0/t.jpg"
-        # if there is no a .ply file beside the image
+        # if there is no a .csv file beside the image
         if len(os.listdir(three_angles_path+"0"))<2:
             #preprocess the img to output .ply file and save it beside the img
             r_success = self.fa(three_angles_path+"0/")
@@ -44,8 +44,7 @@ class OnePerson:
         # readin .ply and convert to 68x3 np
         if r_success and f_success and l_success:
             r_landmarks,f_landmarks,l_landmarks = self.read_csv(person_path,emotion)
-            if r_landmarks.shape==f_landmarks.shape==l_landmarks.shape==(68,3):
-                stack = np.concatenate([r_landmarks,f_landmarks,l_landmarks],axis=1)
+            stack = np.concatenate([r_landmarks,f_landmarks,l_landmarks],axis=1)
             #else:
                 # if there is problem detecting landmarks, we abandon it 
                 #stack = None

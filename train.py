@@ -7,7 +7,7 @@ import torch
 import torch.optim as optim
 import random
 
-def main(split,batch_size,epochs):
+def main(split,batch_size,epochs,dir_path_prefix,log_every_batches):
     #--------------------------------train config---------------------------------------
     # CAUTION: readin all people object at once will casue OOM
     # so we seperate batch indexes first; and make object later inside batch
@@ -16,10 +16,9 @@ def main(split,batch_size,epochs):
     criterion = nn.L1Loss()
     model = Model().to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    
     print(device)
     #---------------------------------prepare ds-----------------------------
-    all_people_index = os.listdir("dataset/train_bakup/")
+    all_people_index = os.listdir(dir_path_prefix)
     num_all_people = len(all_people_index)
     for epoch in range(epochs):
         running_loss = 0.0
@@ -34,7 +33,7 @@ def main(split,batch_size,epochs):
             # zero the parameter gradients every batch
             optimizer.zero_grad()
             for person_index in batch_train:
-                batch_people.append(OnePerson(person_index,"dataset/train/"))
+                batch_people.append(OnePerson(person_index,dir_path_prefix))
             # take each person's each emotion's landmarks as one sample
             labels = []
             inputs = []
@@ -47,10 +46,12 @@ def main(split,batch_size,epochs):
                         inputs.append(emotion["stacked_landmarks"])
                         labels.append(emotion["label_landmarks"])
             inputs = torch.FloatTensor(inputs).to(device)
-            labels = torch.FloatTensor(labels).to(device)
+            labels = torch.FloatTensor(labels).reshape([-1,106*3]).to(device)
             #-------------------------start train one batch-----------------------------
             # forward + backward + optimize
             # input must be tensor rather than np.ndarray
+            if epoch == 0 and batch_idx == 0:
+                print("start training!")
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
@@ -59,9 +60,9 @@ def main(split,batch_size,epochs):
             running_loss += loss.item()
             #-------------------------one batch finish----------------------------------
             # print out every 100 batches
-            if batch_idx == 100:
+            if batch_idx == log_every_batches:
                 # an epoch finish
-                print('[%d, %5d] 100-batches loss: %.3f' %
+                print('[%d, %5d] several batches loss: %.3f' %
                     (epoch + 1, batch_idx + 1, running_loss / 2000))
         # one epoch finish
         print('[%d] epoch loss: %.3f' %
@@ -78,7 +79,10 @@ def seperate_batch(ds,batch_size):
     return batches
 
 if __name__ == "__main__":
-    split = 0.8
-    batch_size = 32
+    split = 1
+    # batch_size 10 people maybe 90 samples because 1 person have several emotions
+    batch_size = 10
     epochs = 30
-    main(split,batch_size,epochs)
+    dir_path_prefix = "dataset/train_bakup/"
+    log_every_batches = 1
+    main(split,batch_size,epochs,dir_path_prefix,log_every_batches)
