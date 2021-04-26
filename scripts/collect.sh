@@ -1,7 +1,9 @@
 # collect person_emotion with stack_landmarks computed
 
-s="train_arrange"
-t="train_FAN"
+# if validation, comment the "label" line
+# and if [[ "$num_file" -eq "6" ]] -> if [[ "$num_file" -eq "4" ]]
+s="validation_arrange"
+t="validation_FAN"
 
 for i in dataset/"$s"/*
 do

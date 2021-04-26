@@ -1,20 +1,22 @@
 import os
 import numpy as np
-from preprocess import FAN
+from .preprocess import FAN
 from plyfile import PlyData, PlyElement
 
 class OnePersonOneEmotion:
-    def __init__(self,person_emotion,prefix):
+    def __init__(self,person_emotion,prefix,test=False):
         self.person_emotion = person_emotion
         self.fa = FAN()
-        self.input_output(prefix)
+        self.input_output(prefix,test)
 
-    def input_output(self,prefix):
+    def input_output(self,prefix,test):
         path = prefix+self.person_emotion
         r,f,l,stack = self.three_angles(path)
-        txt_path = path+"/Images/fusion/nicp_106_pts.txt"
-        label_landmarks = np.loadtxt(txt_path, delimiter=' ')
-        np.savetxt(path+"/Images/"+'/label_landmarks.csv', label_landmarks, delimiter=',')
+        # only train data have labels
+        if not test:
+            txt_path = path+"/Images/fusion/nicp_106_pts.txt"
+            label_landmarks = np.loadtxt(txt_path, delimiter=' ')
+            np.savetxt(path+"/Images/"+'/label_landmarks.csv', label_landmarks, delimiter=',')
 
     def three_angles(self,path):
         r_landmarks,f_landmarks,l_landmarks,stack = None,None,None,None
@@ -53,10 +55,11 @@ class OnePersonOneEmotion:
         return r,f,l
 
 if __name__ == "__main__":
-    prefix = "dataset/train_arrange/"
+    prefix = "dataset/validation_arrange/"
+    test = True
     person_emotions = [i for i in os.listdir(prefix)]
     for person_emotion in person_emotions:
-        one_person = OnePersonOneEmotion(person_emotion,prefix) 
+        one_person = OnePersonOneEmotion(person_emotion,prefix,test=test) 
     
 
 

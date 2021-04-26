@@ -4,8 +4,8 @@
 
 # to run the script we stand on the root baseline/
 
-s="try"
-t="try_arrange"
+s="validation"
+t="validation_arrange"
 
 for i in dataset/"$s"/*
 do

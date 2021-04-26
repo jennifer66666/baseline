@@ -43,6 +43,16 @@ def main(split,batch_size,epochs,log_every_batches,name):
                                 running_loss / (log_every_batches*batch_size),
                                 epoch * len(trainloader) + i)
                 running_loss = 0.0
+        # do test after every epoch finish
+        loss_test = 0.0
+        for i,data in enumerate(testloader,0):
+            inputs,labels = data[0].to(device),data[1].to(device)
+            outputs = model(inputs.float())
+            loss=criterion(outputs,labels)
+            loss_test += loss.item()
+        writer.add_scalar('test loss',
+                                loss_test / (test_size),
+                                epoch * len(trainloader))
     print('Finished Training')
     PATH = './regression_net.pth'
     torch.save(model.state_dict(),PATH)
@@ -52,5 +62,5 @@ if __name__ == "__main__":
     batch_size = 10
     epochs = 30
     log_every_batches = 100
-    name = "experiment_2"
+    name = "experiment_4"
     main(split,batch_size,epochs,log_every_batches,name)

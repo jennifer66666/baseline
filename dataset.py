@@ -21,7 +21,6 @@ class LandmarksDataset(Dataset):
     def __getitem__(self,idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        
         input_name = os.path.join(self.root_dir,self.samples_indx[idx],"stack_landmarks.csv")
         stack_landmarks = np.loadtxt(input_name, delimiter=',')
         stack_landmarks = stack_landmarks.astype('float').reshape(68,9)#68*9
@@ -29,16 +28,45 @@ class LandmarksDataset(Dataset):
         label_landmarks = np.loadtxt(target_name, delimiter=',')
         label_landmarks = label_landmarks.astype('float').reshape(106*3)
         sample = (stack_landmarks,label_landmarks)
-
         return sample
 
+# for competetion inference
+class LandmarksDataset_validation(Dataset):
+    # root_dir = dataset/validation_FAN
+    def __init__(self,root_dir):
+        self.root_dir = root_dir
+        self.samples_indx = os.listdir(root_dir)
+    
+    def __len__(self):
+        return len(os.listdir(self.root_dir))
+    
+    def __getitem__(self,idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        input_name = os.path.join(self.root_dir,self.samples_indx[idx],"stack_landmarks.csv")
+        stack_landmarks = np.loadtxt(input_name, delimiter=',')
+        stack_landmarks = stack_landmarks.astype('float').reshape(68,9)#68*9
+        # for validation set, no labels, input only
+        sample = stack_landmarks
+        return sample,self.samples_indx[idx]
+
 def main():
-    landmarks_dataset = LandmarksDataset(root_dir="dataset/train_FAN")
-    for i in range(len(landmarks_dataset )):
-        sample = landmarks_dataset[i]
-        print(i,sample['input'].shape,sample['label'].shape)
-        if i==3:
-            break
+    train = False
+    validate = True
+    if train:
+        landmarks_dataset = LandmarksDataset(root_dir="dataset/train_FAN")
+        for i in range(len(landmarks_dataset )):
+            sample = landmarks_dataset[i]
+            print(i,sample['input'].shape,sample['label'].shape)
+            if i==3:
+                break
+    if validate:
+        landmarks_dataset = LandmarksDataset_validation(root_dir="dataset/validation_FAN")
+        for i in range(len(landmarks_dataset)):
+            sample = landmarks_dataset[i]
+            print(i,sample['input'].shape)
+            if i==3:
+                break
 
 if __name__=="__main__":
     main()
