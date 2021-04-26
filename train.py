@@ -1,12 +1,11 @@
-# input person,emotion:stack_landmarks 68x9
-# output same_person,same emotion:landmarks 106x3
 from dataset import LandmarksDataset
 from model import *
 import torch
 import torch.optim as optim
 import random
+from torch.utils.tensorboard import SummaryWriter
 
-def main(split,batch_size,epochs,log_every_batches):
+def main(split,batch_size,epochs,log_every_batches,name):
     #--------------------------------train config----------------------------
     # for regression
     device = torch.device("cuda:0")
@@ -15,6 +14,9 @@ def main(split,batch_size,epochs,log_every_batches):
     model = Model()
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    # For tensorboard visualization
+    # default `log_dir` is "runs" - we'll be more specific here
+    writer = SummaryWriter('runs/'+name)
     #---------------------------------prepare ds-----------------------------
     fullset = LandmarksDataset(root_dir="dataset/train_FAN")
     train_size = int(split * len(fullset))
@@ -24,7 +26,7 @@ def main(split,batch_size,epochs,log_every_batches):
     testloader = torch.utils.data.DataLoader(testset,batch_size=batch_size,shuffle=True,num_workers=4)
     #---------------------------------start train-----------------------------
     for epoch in range(epochs):
-        # running loss for checking only, loss for computation
+        # running loss for checking only, loss for forward and backward
         running_loss = 0.0
         for i,data in enumerate(trainloader,0):
             inputs,labels = data[0].to(device),data[1].to(device)
@@ -34,16 +36,21 @@ def main(split,batch_size,epochs,log_every_batches):
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-            if i % log_every_batches == log_every_batches-1:    # print every 10 mini-batches
-                print('[%d, %5d] loss: %.3f' %(epoch + 1, i + 1, running_loss / (log_every_batches*batch_size)))
+            # log every designated mini-batches
+            if i % log_every_batches == log_every_batches-1:    
+                # log the running loss for tensorboard
+                writer.add_scalar('training loss',
+                                running_loss / (log_every_batches*batch_size),
+                                epoch * len(trainloader) + i)
                 running_loss = 0.0
     print('Finished Training')
     PATH = './regression_net.pth'
-    torch.save(net.state_dict(),PATH)
+    torch.save(model.state_dict(),PATH)
 
 if __name__ == "__main__":
     split = 0.8
     batch_size = 10
     epochs = 30
-    log_every_batches = 10
-    main(split,batch_size,epochs,log_every_batches)
+    log_every_batches = 100
+    name = "experiment_2"
+    main(split,batch_size,epochs,log_every_batches,name)
