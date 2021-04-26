@@ -1,88 +1,49 @@
-# arrange train process
 # input person,emotion:stack_landmarks 68x9
 # output same_person,same emotion:landmarks 106x3
-from datasets import *
+from dataset import LandmarksDataset
 from model import *
 import torch
 import torch.optim as optim
 import random
 
-def main(split,batch_size,epochs,dir_path_prefix,log_every_batches):
-    #--------------------------------train config---------------------------------------
-    # CAUTION: readin all people object at once will casue OOM
-    # so we seperate batch indexes first; and make object later inside batch
+def main(split,batch_size,epochs,log_every_batches):
+    #--------------------------------train config----------------------------
     # for regression
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    criterion = nn.L1Loss()
-    model = Model().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    device = torch.device("cuda:0")
     print(device)
+    criterion = nn.L1Loss()
+    model = Model()
+    model.to(device)
+    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     #---------------------------------prepare ds-----------------------------
-    all_people_index = os.listdir(dir_path_prefix)
-    num_all_people = len(all_people_index)
+    fullset = LandmarksDataset(root_dir="dataset/train_FAN")
+    train_size = int(split * len(fullset))
+    test_size = len(fullset) - train_size
+    trainset, testset = torch.utils.data.random_split(fullset, [train_size, test_size])
+    trainloader = torch.utils.data.DataLoader(trainset,batch_size=batch_size,shuffle=True,num_workers=4)
+    testloader = torch.utils.data.DataLoader(testset,batch_size=batch_size,shuffle=True,num_workers=4)
+    #---------------------------------start train-----------------------------
     for epoch in range(epochs):
+        # running loss for checking only, loss for computation
         running_loss = 0.0
-        # random.shuffle() changes the x list in place
-        random.shuffle(all_people_index)
-        ds_train = all_people_index[:int(num_all_people*split)]
-        ds_test = all_people_index[int(num_all_people*split):]
-        batches_train = seperate_batch(ds_train,batch_size)
-        batches_test = seperate_batch(ds_test,batch_size)
-        for batch_idx,batch_train in enumerate(batches_train):
-            batch_people = []
-            # zero the parameter gradients every batch
+        for i,data in enumerate(trainloader,0):
+            inputs,labels = data[0].to(device),data[1].to(device)
             optimizer.zero_grad()
-            for person_index in batch_train:
-                batch_people.append(OnePerson(person_index,dir_path_prefix))
-            # take each person's each emotion's landmarks as one sample
-            labels = []
-            inputs = []
-            for person in batch_people:
-                for emotion in person.input_output:
-                    if emotion["stacked_landmarks"] is None:
-                        # if there is problem to landmark a pic, we skip
-                        continue
-                    else:
-                        inputs.append(emotion["stacked_landmarks"])
-                        labels.append(emotion["label_landmarks"])
-            inputs = torch.FloatTensor(inputs).to(device)
-            labels = torch.FloatTensor(labels).reshape([-1,106*3]).to(device)
-            #-------------------------start train one batch-----------------------------
-            # forward + backward + optimize
-            # input must be tensor rather than np.ndarray
-            if epoch == 0 and batch_idx == 0:
-                print("start training!")
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            outputs = model(inputs.float())
+            loss=criterion(outputs,labels)
             loss.backward()
             optimizer.step()
-            # print statistics
             running_loss += loss.item()
-            #-------------------------one batch finish----------------------------------
-            # print out every 100 batches
-            if batch_idx == log_every_batches:
-                # an epoch finish
-                print('[%d, %5d] several batches loss: %.3f' %
-                    (epoch + 1, batch_idx + 1, running_loss / 2000))
-        # one epoch finish
-        print('[%d] epoch loss: %.3f' %
-            (epoch + 1, running_loss / 2000))
+            if i % log_every_batches == log_every_batches-1:    # print every 10 mini-batches
+                print('[%d, %5d] loss: %.3f' %(epoch + 1, i + 1, running_loss / (log_every_batches*batch_size)))
+                running_loss = 0.0
     print('Finished Training')
-
-def seperate_batch(ds,batch_size):
-    batches = []
-    for i in range(len(ds)//batch_size):
-        if (i+1)*batch_size<len(ds):
-            batches.append(ds[i*batch_size:(i+1)*batch_size])
-        else:
-            batches.append(ds[i*batch_size:])
-    return batches
+    PATH = './regression_net.pth'
+    torch.save(net.state_dict(),PATH)
 
 if __name__ == "__main__":
-    split = 1
-    # batch_size 10 people maybe 90 samples because 1 person have several emotions
+    split = 0.8
     batch_size = 10
     epochs = 30
-    dir_path_prefix = "dataset/train_bakup/"
-    log_every_batches = 1
-    main(split,batch_size,epochs,dir_path_prefix,log_every_batches)
+    log_every_batches = 10
+    main(split,batch_size,epochs,log_every_batches)
